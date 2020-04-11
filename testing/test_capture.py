@@ -15,6 +15,7 @@ from _pytest.capture import CaptureManager
 from _pytest.capture import MultiCapture
 from _pytest.config import ExitCode
 
+
 # note: py.io capture tests where copied from
 # pylib 1.4.20.dev2 (rev 13d9af95547e)
 
@@ -1522,3 +1523,27 @@ def test_combined_streams(capsys):
 def test_no_capsys_exceptions(capfd):
     with pytest.raises(AttributeError, match="Only capsys is able to combine streams."):
         capfd.read_combined()
+
+    with pytest.raises(
+        AttributeError, match="Only capsys can read streams without flushing."
+    ):
+        capfd.readouterr(flush=False)
+
+
+def test_read_without_flushing(capsys):
+    print("stdout")
+    print("stderr", file=sys.stderr)
+    print("stdout")
+
+    output = capsys.read_combined(flush=False)
+    assert output == "stdout\nstderr\nstdout\n"
+
+    out, err = capsys.readouterr(flush=False)
+    assert out == "stdout\nstdout\n"
+    assert err == "stderr\n"
+
+    output2 = capsys.read_combined()
+    assert output == output2
+
+    assert capsys.read_combined() == ""
+    assert capsys.readouterr() == ("", "")

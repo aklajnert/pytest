@@ -1,4 +1,3 @@
-
 .. _`captures`:
 
 Capturing of the stdout/stderr output
@@ -188,3 +187,24 @@ with both ``stdout`` and ``stderr`` streams combined with preserved chronologica
         output = capsys.read_combined()
 
         assert output == "I'm in stdout\nI'm in stderr\nHey, stdout again!\n"
+
+Read output without flushing
+----------------------------
+
+By default, after you retrieve streams content, they will be flushed. If you care about correct order and
+want to make sure that certain message went into correct stream, you can use ``flush=False`` with
+``readouterr()`` or ``read_combined()`` so you will be able to retrieve streams twice:
+
+.. code-block:: python
+
+    def test_no_flush(capsys):
+        print("I'm in stdout")
+        print("I'm in stderr", file=sys.stderr)
+        print("Hey, stdout again!")
+
+        out, err = capsys.readouterr(flush=False)
+        combined = capsys.read_combined(combined=True)  # this will flush normally
+
+        assert out == "I'm in stdout\nHey, stdout again!\n"
+        assert err == "I'm in stderr\n"
+        assert combined == "I'm in stdout\nI'm in stderr\nHey, stdout again!\n"

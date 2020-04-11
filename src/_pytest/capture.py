@@ -348,11 +348,16 @@ class CaptureFixture:
             self._capture.stop_capturing()
             self._capture = None
 
-    def readouterr(self) -> "CaptureResult":
+    def readouterr(self, flush: bool = True) -> "CaptureResult":
         """Read and return the captured output so far, resetting the internal buffer.
 
         :return: captured content as a namedtuple with ``out`` and ``err`` string attributes
         """
+        if flush is False:
+            if self.captureclass is not OrderedCapture:
+                raise AttributeError("Only capsys can read streams without flushing.")
+            OrderedCapture.set_flush(False)
+
         captured_out, captured_err = self._captured_out, self._captured_err
         if self._capture is not None:
             out, err = self._capture.readouterr()
@@ -362,13 +367,14 @@ class CaptureFixture:
         self._captured_err = self.captureclass.EMPTY_BUFFER
         return CaptureResult(captured_out, captured_err)
 
-    def read_combined(self) -> str:
+    def read_combined(self, flush: bool = True) -> str:
         """
         Read captured output with both stdout and stderr streams combined, with preserving
         the correct order of messages.
         """
         if self.captureclass is not OrderedCapture:
             raise AttributeError("Only capsys is able to combine streams.")
+        OrderedCapture.set_flush(flush)
         result = "".join(line[0] for line in OrderedCapture.streams)
         OrderedCapture.flush()
         return result
@@ -696,6 +702,7 @@ class OrderedCapture(SysCapture):
     """Capture class that keeps streams in order."""
 
     streams = collections.deque()  # type: collections.deque
+    _flush = True
 
     def _get_writer(self):
         return OrderedWriter(self.fd)
@@ -708,12 +715,20 @@ class OrderedCapture(SysCapture):
         return res
 
     @classmethod
+    def set_flush(cls, flush: bool) -> None:
+        cls._flush = flush
+
+    @classmethod
     def flush(cls) -> None:
         """Clear streams."""
-        cls.streams.clear()
+        if cls._flush is False:
+            cls.set_flush(True)
+        else:
+            cls.streams.clear()
 
     @classmethod
     def close(cls) -> None:
+        cls.set_flush(True)
         cls.flush()
 
 
