@@ -1493,3 +1493,32 @@ def test__get_multicapture() -> None:
     pytest.raises(ValueError, _get_multicapture, "unknown").match(
         r"^unknown capturing method: 'unknown'"
     )
+
+
+def test_combined_streams(capsys):
+    """Show that capsys is capable of preserving chronological order of streams."""
+    print("stdout1")
+    print("stdout2")
+    print("stderr1", file=sys.stderr)
+    print("stdout3")
+    print("stderr2", file=sys.stderr)
+    print("stderr3", file=sys.stderr)
+    print("stdout4")
+    print("stdout5")
+
+    output = capsys.read_combined()
+    assert (
+        output == "stdout1\n"
+        "stdout2\n"
+        "stderr1\n"
+        "stdout3\n"
+        "stderr2\n"
+        "stderr3\n"
+        "stdout4\n"
+        "stdout5\n"
+    )
+
+
+def test_no_capsys_exceptions(capfd):
+    with pytest.raises(AttributeError, match="Only capsys is able to combine streams."):
+        capfd.read_combined()
